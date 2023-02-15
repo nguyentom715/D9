@@ -1,0 +1,7 @@
+name: 'CT media'
+package: CT Custom
+type: module
+description: 'Media library related.'
+core_version_requirement: ^9.4 || ^10
+dependencies:
+  - inline_entity_form

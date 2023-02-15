@@ -1,0 +1,9 @@
+services:
+  plugin.manager.ct_media.bundle_resolver:
+    class: '\Drupal\Core\Plugin\DefaultPluginManager'
+    arguments:
+      - 'Plugin/MediaBundleResolver'
+      - '@container.namespaces'
+      - '@module_handler'
+      - '\Drupal\ct_media\BundleResolverInterface'
+      - '\Drupal\ct_media\Annotation\MediaBundleResolver'

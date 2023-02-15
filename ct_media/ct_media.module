@@ -1,0 +1,365 @@
+<?php
+/**
+ * @file
+ * Netscout media module file.
+ */
+
+use Drupal\Core\Asset\AttachedAssetsInterface;
+use Drupal\Core\Entity\Entity\EntityFormDisplay;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\media\MediaTypeInterface;
+use Drupal\file\Entity\File;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function ct_media_form_entity_browser_media_browser_form_alter(array &$form, FormStateInterface $form_state) {
+  $form['#attached']['library'][] = 'ct_media/browser.styling';
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function ct_media_form_entity_browser_resource_browser_form_alter(array &$form, FormStateInterface $form_state) {
+  $form['#attached']['library'][] = 'ct_media/browser.styling';
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ */
+function ct_media_media_bundle_insert(MediaTypeInterface $bundle) {
+  /** @var \Drupal\field\Entity\FieldConfig $field */
+  $field = FieldConfig::create([
+    'field_name' => 'field_media_in_library',
+    'entity_type' => 'media',
+    'bundle' => $bundle->id(),
+  ]);
+
+  $t = \Drupal::translation();
+  $field
+    ->setSetting('on_label', $t->translate('Saved to my media library'))
+    ->setSetting('off_label', $t->translate('Not in my media library'))
+    ->setLabel($t->translate('Save to my media library'))
+    ->setDefaultValue(TRUE)
+    ->save();
+
+  $form_display = EntityFormDisplay::load('media.' . $bundle->id() . '.default');
+  if (empty($form_display)) {
+    $form_display = EntityFormDisplay::create([
+      'targetEntityType' => 'media',
+      'bundle' => $bundle->id(),
+      'mode' => 'default',
+      'status' => TRUE,
+    ]);
+  }
+  $form_display->setComponent('field_media_in_library', [
+    'type' => 'boolean_checkbox',
+    'settings' => [
+      'display_label' => TRUE,
+    ],
+  ])->save();
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function ct_media_form_entity_embed_dialog_alter(array &$form, FormStateInterface $form_state) {
+  list ($editor, $embed_button) = $form_state->getBuildInfo()['args'];
+
+  /** @var \Drupal\embed\EmbedButtonInterface $embed_button */
+  if ($embed_button->id() == 'media_browser') {
+    $element = &$form['attributes']['data-entity-embed-settings']['view_mode'];
+    if (isset($element['#options']['embedded'])) {
+      $element['#default_value'] = 'embedded';
+    }
+  }
+}
+
+/**
+ * Implements hook_js_settings_alter().
+ */
+function ct_media_js_settings_alter(array &$settings, AttachedAssetsInterface $assets) {
+  if (empty($settings['ajax'])) {
+    $settings['ajax'] = [];
+  }
+
+  $route_name = \Drupal::routeMatch()->getRouteName();
+  if ((string)$route_name && strpos($route_name, 'entity_browser') === 0 && isset($settings['ajaxPageState']['libraries'])) {
+    $libraries = explode(',', $settings['ajaxPageState']['libraries']);
+    // If we pretend EB's iframe library has not been previously loaded, it will
+    // ALWAYS be fetched from the server, preventing (in a crappy, kludgey way)
+    // the bug in #2768849.
+    $libraries = array_diff($libraries, ['entity_browser/iframe']);
+    $settings['ajaxPageState']['libraries'] = implode(',', $libraries);
+  }
+}
+
+/**
+ * Implements hook_ajax_render_alter().
+ */
+function ct_media_ajax_render_alter(array &$data) {
+  if (\Drupal::routeMatch()->getRouteName() == 'entity_embed.dialog') {
+    foreach ($data as &$command) {
+      if ($command['command'] == 'settings' && isset($command['settings']['ajaxPageState']['libraries'])) {
+        $libraries = explode(',', $command['settings']['ajaxPageState']['libraries']);
+        $libraries = array_diff($libraries, ['entity_browser/iframe']);
+        $command['settings']['ajaxPageState']['libraries'] = implode(',', $libraries);
+      }
+    }
+  }
+}
+
+/**
+ * Preprocess function for grid views of the media library.
+ *
+ * @param array $variables
+ *   Template variables.
+ */
+function ct_media_preprocess_views_view_grid__media(array &$variables) {
+  foreach ($variables['items'] as &$item) {
+    foreach ($item['content'] as &$column) {
+      $column['attributes']['data-selectable'] = 'true';
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_media.
+ */
+function ct_media_preprocess_media(&$variables) {
+  /** @var \Drupal\media\MediaInterface $media */
+  $media = $variables['elements']['#media'];
+  $media_type = $media->bundle();
+  $media_title = $media->label();
+
+  // Set options for links.
+  $link_options = [
+    'absolute' => TRUE,
+  ];
+
+  // Get Asset Type value.
+  $term_asset_type_name = '';
+  $term_asset_type_icon = '';
+  $term_asset_type_color = 'color--grey';
+  $media_conditional_values = [];
+
+  // Get NS Ams Label config.
+  $config = \Drupal::config('ct_ams.settings');
+
+  // add the cache tag, so that the output gets invalidated when the config is saved.
+  \Drupal::service('renderer')->addCacheableDependency($variables, $config);
+
+  // Get value to provide option on cta_label when needed.
+  $config_document_label = !empty($config->get('document_label')) ? $config->get('document_label') : 'Download PDF';
+  $config_link_document_label = !empty($config->get('link_document_label')) ? $config->get('link_document_label') : 'Read More';
+  $config_video_label = !empty($config->get('video_label')) ? $config->get('video_label') : 'Watch Video';
+
+  // Get the asset type icon.
+  $field_asset_type_name = 'field_media_asset_types';
+  // Get Asset Type color.
+  $field_tag_color = 'field_tag_color';
+  if($media->hasField($field_asset_type_name) && !empty($media->get($field_asset_type_name)->first())) {
+    $asset_type_target_id = $media->get($field_asset_type_name)->first()->getValue()['target_id'];
+
+    $term_asset_type = Term::load($asset_type_target_id);
+    if(isset($term_asset_type)) {
+      $term_asset_type_name = $term_asset_type->getName();
+    }
+    if(!empty($term_asset_type->get('field_tag_fa_icon')->first())) {
+      $faIcon = $term_asset_type->get('field_tag_fa_icon')->first()->getValue();
+      $term_asset_type_icon = "{$faIcon['style']} fa-{$faIcon['icon_name']}";
+    }
+    if(!empty($term_asset_type->get($field_tag_color)->first())) {
+      $term_asset_type_color = ($term_asset_type->get($field_tag_color)->first()->getValue()['value']);
+    }
+  }
+
+  // Get File URL using File id (target_id).
+  if ($media_type == 'document' && $media->hasField('field_document')) {
+    $media_document_target_id = $media->get('field_document')->getValue()[0]['target_id'];
+    $media_file_url = \Drupal::service('file_url_generator')->generateAbsoluteString(File::load($media_document_target_id)->getFileUri());
+    $media_file_url_label = !empty($media->get('field_media_doc_link_label')->first()) ? $media->get('field_media_doc_link_label')->first()->getValue()['value'] : $config_document_label;
+    $media_target = '_blank';
+
+    // Change URL to related node URL if one exists for this media asset.
+    // Search case_studies and success_stories node types.
+    $single_asset_nodes = array('case_studies', 'success_stories');
+
+    $entity_type_manager = \Drupal::service('entity_type.manager');
+
+    $node_storage = $entity_type_manager->getStorage('node');
+
+    $nids = $node_storage->getQuery()
+      ->condition('type', $single_asset_nodes, 'IN')
+      ->condition('field_single_asset.target_id', $media->id())
+      ->condition('status', 1)
+      ->accessCheck(TRUE)
+      ->execute();
+
+    if ($nids) {
+      $nodes = $node_storage->loadMultiple($nids);
+      $node = reset($nodes);
+      $media_file_url = $node->toUrl()->setAbsolute()->toString();
+      $media_target = '_self';
+      $media_file_url_label = $config_link_document_label;
+      $media_title = $node->label();
+    }
+
+    $media_conditional_values = [
+      'media_file_url' => $media_file_url,
+      'media_file_url_label' => $media_file_url_label,
+      'target' => $media_target,
+      'cta_label' => $config_document_label,
+    ];
+  }
+  elseif ($media_type == 'link_document' && $media->hasField('field_media_document_url')) {
+    $doc_url = $media->get('field_media_document_url')->first();
+
+    // Get document url label.
+    $doc_url_label = !empty($doc_url->get('title')) ? $doc_url->get('title')->getValue() : $config_link_document_label;
+
+    // If internal, absolute URL from URI.
+    if(!$doc_url->isExternal()) {
+      $doc_url_value = URL::fromUri($doc_url->get('uri')->getValue(),$link_options)->toString();
+    }
+    else {
+      $doc_url_value = $doc_url->getUrl()->getUri();
+    }
+
+    $media_conditional_values = [
+      'is_link_document' => true,
+      'is_external' => isset($doc_url) ? $doc_url->isExternal() : false,
+      'doc_url' => $doc_url_value,
+      'doc_url_label' => $doc_url_label,
+    ];
+  }
+  elseif ($media_type == 'video' && $media->hasField('field_media_video_url')) {
+    $video_url = $media->get('field_media_video_url')->first();
+
+    // Get video link label if set.
+    $video_url_label = !empty($video_url->get('title')) ? $video_url->get('title')->getValue() : $config_video_label;
+
+    if(isset($video_url) && !$video_url->isEmpty()) {
+      $video_url_value = URL::fromUri($video_url->get('uri')->getValue(),$link_options)->toString();
+    }
+    else {
+      $video_url_value = NULL;
+    }
+
+    // Fetch Video UUID if populated.
+    $video_uuid = FALSE;
+    if(!empty($media->get('field_media_video_uuid')->first())) {
+      $video_uuid = $media->get('field_media_video_uuid')->first()->getValue()['value'];
+    }
+
+    // Process video by getting tag icon and name.
+    $media_conditional_values = [
+      'is_video' => true,
+      'is_external' => isset($video_url) ? $video_url->isExternal() : false,
+      'video_url' => $video_url_value,
+      'video_url_label' => $video_url_label,
+      'video_uuid' => $video_uuid != FALSE ? $video_uuid : FALSE,
+    ];
+  }
+  elseif ($media_type == 'ct_uberflip' && $media->hasField('field_link')) {
+    $doc_url = $media->get('field_link')->first();
+    $doc_url_title = $media->field_link->title;
+    $doc_url_label = $doc_url_title ? $doc_url_title : $config_link_document_label;
+    $doc_url_value = $doc_url ? $doc_url->getUrl()->getUri() : "";
+    $media_conditional_values = [
+      'is_link_document' => true,
+      'is_external' => true,
+      'doc_url' => $doc_url_value,
+      'doc_url_label' => $doc_url_label,
+    ];
+  }
+
+  // Set Variables regardless of type for twig templates.
+  $media_values_all = [
+    'is_published' => $media->isPublished(),
+    'asset_type_icon' => $term_asset_type_icon,
+    'asset_type_name' => $term_asset_type_name,
+    'asset_type_color' => $term_asset_type_color,
+    'media_title' => $media_title,
+  ];
+
+  $variables['vm_resource'] = array_merge($media_conditional_values,$media_values_all);
+}
+
+/**
+ * For media entity reference, remove if not published or null.
+ * Implements hook_preprocess_field().
+ */
+function ct_media_preprocess_field(&$variables) {
+  $element = $variables['element'];
+  $entity_type = $element['#entity_type'];
+  $field_name = $element['#field_name'];
+
+  if($entity_type == 'node') {
+    if($field_name == 'field_asset_additional_resources') {
+      $delta = 0;
+
+      while(!empty($element[$delta])) {
+        // If media is set, but not published remove it.
+        $unset_media_item = _unset_media($element[$delta], 'vm_two_column');
+        if($unset_media_item) {
+          unset($variables['items'][$delta]);
+        }
+        $delta++;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_eck_entity().
+ */
+function ct_media_preprocess_eck_entity(&$variables) {
+  $entity = $variables['content'];
+  $eck_field_name = 'field_eck_media_reference';
+
+
+  if(isset($entity[$eck_field_name])) {
+    $eck_media_reference = $entity[$eck_field_name];
+    $delta = 0;
+
+    while(!empty($eck_media_reference[$delta])) {
+      // If media is set, but not published remove it.
+      $unset_media_item = _unset_media($eck_media_reference[$delta], 'vm_promotion');
+
+      if($unset_media_item) {
+        unset($eck_media_reference[$delta]);
+      }
+      $delta++;
+    }
+  }
+}
+
+/**
+ * Return if media is published or not (true or false).
+ */
+function _unset_media($media_item, $view_mode = '') {
+
+  // Default is not to unset, only if not published.
+  $unset_item = false;
+
+  if(isset($view_mode) && isset($media_item['#view_mode']) && $media_item['#view_mode'] == $view_mode) {
+    $media = $media_item['#media'];
+    // If media is not published or deleted, remove from render array.
+    if(isset($media) && $media->hasField('field_document')) {
+      // If media is not published, then do not add to render array.
+      if(!$media->isPublished()) {
+        $unset_item = true;
+      }
+    }
+    else {
+      // Media is null(e.g. deleted), so remove from array.
+      $unset_item = true;
+    }
+  }
+
+  return $unset_item;
+}
