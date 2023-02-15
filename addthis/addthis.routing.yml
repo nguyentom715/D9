@@ -1,0 +1,10 @@
+addthis.settings:
+  path: '/admin/config/addthis/setting'
+  defaults:
+    _form: '\Drupal\addthis\Form\AddThisForm'
+    _title: 'Administer AddThis'
+  requirements:
+    _permission: 'administer addthis'
+  options:
+    _admin_route: TRUE
+

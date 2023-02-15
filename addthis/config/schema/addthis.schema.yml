@@ -1,0 +1,15 @@
+addthis.settings:
+  type: config_object
+  label: 'AddThis'
+  mapping:
+    add_by_content_type:
+      type: sequence
+      label: 'Add by Content Type.'
+      sequence:
+        type: string
+    add_by_url:
+      type: string
+      label: 'Add By Url'
+    excluded_urls:
+      type: string
+      label: 'Excluded URLs'

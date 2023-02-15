@@ -1,0 +1,10 @@
+<?php
+/**
+ *Uninstall function
+*/
+function addthis_uninstall() {
+  $config_factory = \Drupal::configFactory();
+
+  // Remove the settings file.
+  $config_factory->getEditable('ns_addthis.settings')->delete();
+}

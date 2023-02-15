@@ -1,0 +1,24 @@
+add_by_content_type:
+  aggregator: aggregator
+  article: article
+  asert_blog_authors: asert_blog_authors
+  asert_blog_post: asert_blog_post
+  case_studies: case_studies
+  event: event
+  family_page: family_page
+  landing_page: landing_page
+  marketo_page: marketo_page
+  newscred_article: newscred_article
+  page: page
+  product: product
+  product_group: product_group
+  questions: questions
+  topic_page: topic_page
+  asset_gateway: 0
+  blank_page: 0
+  leadership: 0
+  marketo_sa: 0
+  media_coverage: 0
+  partner: 0
+  speaking_event: 0
+add_by_url: "/arbor-fair-wp-ppc\r\n/new-ddos-era\r\n/smart-data-visibility\r\n/blog\r\n/devsecops"

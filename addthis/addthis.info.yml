@@ -1,0 +1,5 @@
+name: 'AddThis'
+type: module
+description: 'Setting to add AddThis to page by content type or URL.'
+package:  Custom
+core_version_requirement: ^9.4 || ^10

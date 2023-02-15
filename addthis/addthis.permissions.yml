@@ -1,0 +1,3 @@
+administer addthis:
+  title: 'Administer AddThis'
+  description: 'Add or remove AddThis by content type or URL.'

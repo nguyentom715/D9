@@ -1,0 +1,11 @@
+addthis-embed:
+  header: true
+  version: 1.0
+  js:
+    //s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5a2974ab1cafb62f: { type: external, attributes: { async: true } }
+addthis-custom-settings:
+  version: 1.1
+  js:
+    js/addthis-settings.js: { preprocess: false, attributes: { defer: true } }
+  dependencies:
+    - addthis/addthis-embed

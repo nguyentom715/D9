@@ -1,0 +1,77 @@
+<?php
+
+/**
+ * @file
+ * Contains addthis.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_help().
+ */
+function addthis_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the addthis module.
+    case 'help.page.addthis':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Setting to add AddThis to page by content type or URL.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_page_attachments().
+ */
+function addthis_page_attachments(array &$attachments) {
+
+  // Get Config and current URI.
+  $config = \Drupal::config('addthis.settings');
+
+  // add the cache tag, so that the output gets invalidated when the config is saved.
+  \Drupal::service('renderer')->addCacheableDependency($attachments, $config);
+
+  // Get URLs and Content Types to add AddThis too.
+  $add_by_url = !empty($config->get('add_by_url')) ? $config->get('add_by_url') : FALSE;
+  $add_by_content_type = !empty($config->get('add_by_content_type')) ? $config->get('add_by_content_type') : FALSE;
+  $url_delimiter = "\r\n";
+
+  // Get Exclusion list.
+  $excluded_urls = !empty($config->get('excluded_urls')) ? $config->get('excluded_urls') : FALSE;
+  $excluded_urls = explode($url_delimiter, $excluded_urls);
+
+  // Get URLs to add to and get current url for comparison.
+  $add_by_url = explode($url_delimiter, $add_by_url);
+  $current_url = Url::fromRoute('<current>')->toString();
+
+  $excluded_current_url = false;
+  // If current URL is excluded, then do not add AddThis.
+  foreach($excluded_urls as $url) {
+    if (stripos($current_url, $url) === 0) {
+      // simply return and don't continue.
+      $excluded_current_url = true;
+      break;
+    }
+  }
+
+  // As long as its a node, proceed to check content type and URL.
+  if(!$excluded_current_url) {
+    $node = \Drupal::routeMatch()->getParameter('node');
+    if (is_object($node) && in_array($node->bundle(), $add_by_content_type)) {
+      $attachments['#attached']['library'][] = 'addthis/addthis-embed';
+      $attachments['#attached']['library'][] = 'addthis/addthis-custom-settings';
+    }
+
+    // If current page found in allowed list, then add libraries
+    foreach ($add_by_url as $url) {
+      if (stripos($current_url, $url) === 0) {
+        $attachments['#attached']['library'][] = 'addthis/addthis-embed';
+        $attachments['#attached']['library'][] = 'addthis/addthis-custom-settings';
+      }
+    }
+  }
+}
