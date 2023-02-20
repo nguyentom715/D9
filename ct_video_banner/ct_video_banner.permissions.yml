@@ -1,0 +1,3 @@
+administer ns_video_banner:
+  title: 'Administer Video Banner Admin page'
+  description: 'Allows the ability to change which modules will use Video Banner settings.'

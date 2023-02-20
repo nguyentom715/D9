@@ -1,0 +1,9 @@
+ct_video_banner.settings:
+  path: '/admin/config/ct/video_banner/setting'
+  defaults:
+    _form: '\Drupal\ct_video_banner\Form\CtVideoBannerForm'
+    _title: 'Video Banner Settings'
+  requirements:
+    _permission: 'administer ct_video_banner'
+  options:
+      _admin_route: TRUE

@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * RSS block to define url.
+ */
+
+/**
+ * Implements hook_preproces_node().
+ */
+function ct_video_banner_preprocess_node(&$variables) {
+  $node = $variables['node'];
+  $node_view_mode = $variables['elements']['#view_mode'];
+  $field_pr_video = 'field_pr_video_modal_cta';
+
+  // If in the enabled content types, proceed.
+  if($node_view_mode == 'full' && $node->hasField($field_pr_video)) {
+    // Store if empty or not.
+    $variables['video_modal_cta_is_empty'] = $node->get($field_pr_video)->isEmpty();
+  }
+}

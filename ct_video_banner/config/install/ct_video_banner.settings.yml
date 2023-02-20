@@ -1,0 +1,20 @@
+video_banner_enabled_content_types:
+  product: product
+  product_group: product_group
+  aggregator: '0'
+  article: '0'
+  asset_gateway: '0'
+  blank_page: '0'
+  digital_asset: '0'
+  event: '0'
+  family_combo: '0'
+  family_page: '0'
+  hnt_products: '0'
+  landing_page: '0'
+  leadership: '0'
+  marketo_page: '0'
+  media_coverage: '0'
+  newscred_article: '0'
+  page: '0'
+  partner: '0'
+  topic_page: '0'

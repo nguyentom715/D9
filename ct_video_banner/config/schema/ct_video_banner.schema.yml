@@ -1,0 +1,9 @@
+ct_video_banner.settings:
+  type: config_object
+  label: 'Video Banner'
+  mapping:
+    video_banner_enabled_content_types:
+      type: sequence
+      label: 'Enabled Content Types for having video button in banner.'
+      sequence:
+        type: string

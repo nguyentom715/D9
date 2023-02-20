@@ -1,0 +1,5 @@
+ct_video_banner.settings:
+  title: 'Video Banner setting'
+  route_name: ct_video_banner.settings
+  description: 'Video Banner settings'
+  parent: system.admin_config_services

@@ -1,0 +1,6 @@
+name: 'Video Banner'
+description: 'Set Video Banner settings'
+core_version_requirement: ^9.4 || ^10
+type: module
+package: CT Custom
+configure: ct_video_banner.setttings
